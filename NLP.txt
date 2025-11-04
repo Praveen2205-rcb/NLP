@@ -1,0 +1,814 @@
+1 (a)nltk&spacy
+
+import spacy
+
+# Load English tokenizer, tagger, parser, NER, and word vectors
+nlp = spacy.load("en_core_web_sm") 
+
+# Sample text
+text = "Hello there! This is a simple example. spaCy helps in text processing."
+
+# Process the text
+doc = nlp(text)
+
+# Sentence Tokenization
+print("Sentence Tokenization:")
+for sent in doc.sents:
+    print(sent.text)
+
+# Word Tokenization
+print("\nWord Tokenization:")
+words = [token.text for token in doc]
+print(words)
+
+# Removal of Stop Words (and punctuation)
+filtered_words = [token.text for token in doc if not token.is_stop and token.is_alpha]
+print("\nAfter Removing Stop Words:")
+print(filtered_words)
+
+
+(b)good-turingfreq
+
+from collections import defaultdict
+
+def good_turing(tokens):
+    # Count bigrams
+    bigram_counts = defaultdict(int)
+    for i in range(len(tokens) - 1):
+        bigram_counts[(tokens[i], tokens[i + 1])] += 1
+
+    # Frequency of frequencies
+    Nc = defaultdict(int)
+    for c in bigram_counts.values():
+        Nc[c] += 1
+    total = sum(bigram_counts.values())
+
+    # Apply Good-Turing adjustment
+    probs = {}
+    for bg, c in bigram_counts.items():
+        c_star = (c + 1) * (Nc[c + 1] / Nc[c]) if Nc[c] and Nc[c + 1] else c
+        probs[bg] = c_star / total
+
+    unseen = Nc[1] / total if total else 0
+    return probs, unseen
+
+
+# ---- Train ----
+train_tokens = "I love natural language processing and I love artificial intelligence".split()
+probs, unseen = good_turing(train_tokens)
+
+print("Smoothed Bigram Probabilities:\n")
+for (w1, w2), p in probs.items():
+    print(f"P({w2} | {w1}) = {p:.6f}")
+
+print(f"\nProbability for unseen bigrams: {unseen:.6f}")
+
+# ---- Test ----
+test_tokens = "I love machine learning".split()
+print("\nTest Bigram Probabilities:\n")
+for i in range(len(test_tokens) - 1):
+    pair = (test_tokens[i], test_tokens[i + 1])
+    prob = probs.get(pair, unseen)
+    print(f"P({pair[1]} | {pair[0]}) = {prob:.6f}")
+
+
+
+2 (a)corpus
+
+import nltk
+from nltk.corpus import PlaintextCorpusReader
+
+# Download tokenizer models (needed for splitting into words/sentences)
+nltk.download('punkt')
+
+# Define a custom corpus directory
+corpus_root = 'my_corpus'   # <-- folder with text files
+corpus = PlaintextCorpusReader(corpus_root, '.*\.txt')  # regex matches .txt filesl
+# List files in the corpus
+print("Files in corpus:", corpus.fileids())
+# Raw text of first file
+print("\nRaw content of first file:\n")
+print(corpus.raw(corpus.fileids()[0]))
+# Words in the first file
+print("\nTokenized words from first file:\n")
+print(corpus.words(corpus.fileids()[0]))
+# Sentences in the first file
+print("\nTokenized sentences from first file:\n")
+print(corpus.sents(corpus.fileids()[0]))
+# Print all words in the first file
+for word in corpus.words(corpus.fileids()[0]):
+    print(word, end=' ')
+
+
+(b)POS Tagger
+
+# Program 1: POS Tagger for text scraped from website
+import requests
+from bs4 import BeautifulSoup
+import nltk
+
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+
+url = "https://www.bnmit.org/"
+page = requests.get(url)
+soup = BeautifulSoup(page.content, "html.parser")
+
+text = ' '.join(soup.stripped_strings)
+tokens = nltk.word_tokenize(text)
+tags = nltk.pos_tag(tokens)
+
+print("Sample text:\n", text[:200])
+print("\nPOS tags (first 25):\n", tags[:25])
+
+3 (a) consconstituencyparsetree
+
+import nltk
+from nltk import CFG
+
+# Define a simple context-free grammar (CFG)
+grammar = CFG.fromstring("""
+    S -> NP VP
+    NP -> Det Adj N
+    VP -> V NP
+    PP -> P NP
+    Det -> 'the' | 'a'
+    Adj -> 'little' | 'big'
+    N -> 'cat' | 'dog' | 'park' | 'girl'
+    V -> 'chased' | 'saw'
+    P -> 'in' | 'on'
+""")  
+
+# Create a parser
+parser = nltk.ChartParser(grammar)
+
+# Define a sentence to parse
+sentence = "the little girl saw a big dog".split()
+
+# Generate and display the parse tree
+for tree in parser.parse(sentence):
+    tree.pretty_print()      # Prints parse tree in text format
+    tree.draw()              # Opens a window with a graphical tree
+
+
+(b)dependencyparsetree
+
+import spacy
+from nltk import displacy
+
+def generate_dependency_tree(sentence):
+    nlp = spacy.load("en_core_web_sm")
+    doc = nlp(sentence)
+
+    # Print dependencies in a neat table
+    print(f"{'Token':<12}{'Dep':<12}{'Head':<12}{'POS'}")
+    print("-" * 50)
+    for token in doc:
+        print(f"{token.text:<12}{token.dep:<12}{token.head.text:<12}{token.head.pos_}")
+    displacy.render(doc, style="Dep", Jupyter=True)
+# Example
+sentence = "The little girl saw a big dog in the park."
+generate_dependency_tree(sentence)
+
+
+
+4 bi-gram
+
+import nltk
+from nltk import word_tokenize, bigrams
+from collections import Counter
+
+# Download tokenizer
+nltk.download('punkt', quiet=True)
+
+# --- Step 1: Prepare data ---
+corpus = "Natural language processing with Python is interesting. Python is powerful."
+tokens = word_tokenize(corpus.lower())
+
+# --- Step 2: Count unigrams and bigrams ---
+uni = Counter(tokens)
+bi = Counter(bigrams(tokens))
+
+# --- Step 3: Define bigram probability function ---
+def prob(w1, w2):
+    return bi.get((w1, w2), 0) / uni.get(w1, 1)
+
+# --- Step 4: Display all bigram probabilities ---
+print("Bigram Probabilities:\n")
+for (w1, w2), count in bi.items():
+    print(f"P({w2} | {w1}) = {prob(w1, w2):.4f}")
+
+# --- Step 5: Test a sentence ---
+sent = "python is powerful"
+words = word_tokenize(sent.lower())
+
+p = 1
+for i in range(len(words) - 1):
+    p *= prob(words[i], words[i + 1])
+
+print(f"\nSentence: {sent}")
+print(f"Sentence Probability = {p:.10f}")
+
+
+
+5 (a)leplacesmoothing-ngram
+
+from collections import defaultdict
+
+class LaplaceSmoothing:
+    def __init__(self, corpus):
+        # Store unigram and bigram counts
+        self.unigrams = defaultdict(int)
+        self.bigrams = defaultdict(int)
+        vocab = set()
+
+        # Count words and word pairs
+        for sentence in corpus:
+            words = sentence.split()
+            vocab.update(words)
+            for i in range(len(words)):
+                self.unigrams[words[i]] += 1
+                if i > 0:
+                    self.bigrams[(words[i - 1], words[i])] += 1
+
+        self.vocab_size = len(vocab)  # total unique words
+
+    def bigram_prob(self, w1, w2):
+        """Calculate Laplace-smoothed probability P(w2 | w1)."""
+        return (self.bigrams[(w1, w2)] + 1) / (self.unigrams[w1] + self.vocab_size)
+
+
+# ------------------------------
+# Example Usage
+# ------------------------------
+corpus = ["the cat sat on the mat", "the dog sat on the mat"]
+model = LaplaceSmoothing(corpus)
+
+print("Bigram Counts:", dict(model.bigrams))
+print("Unigram Counts:", dict(model.unigrams))
+print("Vocabulary Size:", model.vocab_size)
+
+# Example probability
+print(f"P(a | dog) = {model.bigram_prob('dog', 'a'):.3f}")
+
+
+(b)stemming&lemmatize
+
+import spacy
+from nltk.stem import PorterStemmer
+
+# Load spaCy English model
+nlp = spacy.load("en_core_web_sm")
+
+# Example text
+text = "The striped bats are hanging on their feet for best"
+
+# Process with spaCy
+doc = nlp(text)
+
+print("---- Lemmatization (spaCy) ----")
+for token in doc:
+    print(f"{token.text:15} -> {token.lemma_}")
+
+# Using NLTK's Porter Stemmer for stemming
+stemmer = PorterStemmer()
+
+print("\n---- Stemming (NLTK) ----")
+for word in text.split():
+    print(f"{word:15} -> {stemmer.stem(word)}")
+
+
+
+6 (a)text-classification
+
+# Lexical Semantics - Text Classification using TF-IDF and Logistic Regression
+# pip install scikit-learn
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
+
+# Step 1: Dataset (text + labels)
+docs = [
+    "I love this phone",
+    "This laptop is great",
+    "The movie was boring",
+    "Worst product ever"
+]
+labels = ["positive", "positive", "negative", "negative"]
+
+# Step 2: Convert text data into numerical features using TF-IDF
+vec = TfidfVectorizer()
+X = vec.fit_transform(docs)
+
+# Step 3: Split dataset into train and test sets
+X_tr, X_te, y_tr, y_te = train_test_split(X, labels, test_size=0.5, random_state=0)
+
+# Step 4: Train the classifier
+clf = LogisticRegression(max_iter=200)
+clf.fit(X_tr, y_tr)
+
+# Step 5: Evaluate the model
+pred = clf.predict(X_te)
+
+print("Output:-\n")
+print("Accuracy:", accuracy_score(y_te, pred))
+print("\nClassification Report:")
+print(classification_report(y_te, pred))
+print("Train labels:", y_tr)
+print("Test labels:", y_te)
+
+
+(b)LeskAlgorithm
+
+# Lesk Algorithm for Word Sense Disambiguation
+# ----------------------------------------------------------
+# The Lesk algorithm identifies the correct sense of a word
+# based on the overlap between its dictionary definition
+# (gloss) and the context it appears in.
+
+import nltk
+from nltk.corpus import wordnet as wn
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import string
+
+# Download necessary resources (only first run)
+nltk.download('wordnet')
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('omw-1.4')
+nltk.download('punkt_tab') # Added to fix the error
+
+stop_words = set(stopwords.words('english'))
+punct = set(string.punctuation)
+
+# --- Preprocessing function ---
+def preprocess(text):
+    tokens = word_tokenize(text.lower())
+    return [t for t in tokens if t.isalpha() and t not in stop_words and t not in punct]
+
+# --- Simple Lesk Algorithm Implementation ---
+def lesk_algorithm(context_sentence, ambiguous_word):
+    best_sense = None
+    max_overlap = 0
+
+    # Tokenize and preprocess the context sentence
+    context = set(preprocess(context_sentence))
+
+    # Iterate through all possible senses of the word
+    for sense in wn.synsets(ambiguous_word):
+        # Signature = definition + examples
+        signature = sense.definition()
+        signature += " " + " ".join(sense.examples())
+        signature_tokens = set(preprocess(signature))
+
+        # Overlap between context and signature
+        overlap = len(context.intersection(signature_tokens))
+
+        if overlap > max_overlap:
+            max_overlap = overlap
+            best_sense = sense
+
+    return best_sense
+
+# === Example Sentences ===
+sent1 = "I went to the bank to deposit my money."
+sent2 = "The river overflowed the bank and flooded the village."
+
+word = "bank"
+
+# --- Run Lesk on both sentences ---
+sense1 = lesk_algorithm(sent1, word)
+sense2 = lesk_algorithm(sent2, word)
+
+print("Sentence 1:", sent1)
+print("Predicted Sense:", sense1.name() if sense1 else None)
+print("Definition:", sense1.definition() if sense1 else None)
+
+print("\nSentence 2:", sent2)
+print("Predicted Sense:", sense2.name() if sense2 else None)
+print("Definition:", sense2.definition() if sense2 else None)
+
+
+
+7 vector-similarity
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+sents = ["I love playing football", "Football is a great sport", "I enjoy reading books"]
+vec = TfidfVectorizer()
+X = vec.fit_transform(sents)
+
+sim = cosine_similarity(X,X)
+print("Cosine similarity matrix:\n", sim)
+print(f"\nSimilarity Between S1 and S2:{sim[0, 1]:.4f}")
+
+
+
+8 BERT
+
+# pip install transformers torch
+
+from transformers import BertTokenizer, BertModel
+import torch
+import torch.nn.functional as F
+
+# Load pre-trained BERT model and tokenizer
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+model = BertModel.from_pretrained("bert-base-uncased")
+
+# Two sentences containing the ambiguous word "bank"
+s1 = "He went to the bank to deposit his money."
+s2 = "He sat on the bank of the river and enjoyed the view."
+
+def get_embedding(sentence, word):
+    """Return embedding and tokens for the given word."""
+    inputs = tokenizer(sentence, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs)
+    tokens = tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
+    index = tokens.index(word)  # position of target word
+    embedding = outputs.last_hidden_state[0, index, :]
+    return embedding, tokens
+
+# Get embeddings and tokens for both sentences
+emb1, tok1 = get_embedding(s1, "bank")
+emb2, tok2 = get_embedding(s2, "bank")
+
+# Compute cosine similarity between both contexts
+sim = F.cosine_similarity(emb1.unsqueeze(0), emb2.unsqueeze(0)).item()
+
+# Display results
+print("\nTokens Sentence 1:", tok1)
+print("Tokens Sentence 2:", tok2)
+print(f"\nCosine Similarity between 'bank' contexts: {sim:.4f}")
+
+if sim < 0.7:
+    print("→ Different meanings detected (financial vs river bank).")
+else:
+    print("→ Same meaning detected.")
+
+
+9 TF-IDF
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+import pandas as pd
+
+# Sample documents
+d0 = 'I love machine learning'
+d1 = 'I love artificial intelligence'
+d2 = 'we love NLP'
+
+# Combine into a corpus
+corpus = [d0, d1, d2]
+
+# Initialize TF-IDF Vectorizer
+tfidf = TfidfVectorizer()
+
+# Compute TF-IDF matrix
+tfidf_matrix = tfidf.fit_transform(corpus)
+
+# Get feature names (unique words)
+features = tfidf.get_feature_names_out()
+
+# Convert to DataFrame for readability
+df = pd.DataFrame(tfidf_matrix.toarray(), columns=features)
+
+print("TF-IDF Matrix:")
+print(df)
+
+# Show IDF values
+print("\nIDF Values:")
+for word, val in zip(features, tfidf.idf_):
+    print(f"{word}: {val:.4f}")
+
+
+
+10 (a)Info-Extraction
+
+# Module: Information Extraction
+# ------------------------------------------------------------
+# Goal: Extract structured information (entities, noun phrases) 
+# from unstructured text using Python and spaCy.
+
+import spacy
+
+# Load spaCy English model
+nlp = spacy.load("en_core_web_sm")
+
+# --- Input: Unstructured Text ---
+text = """
+Apple Inc. is looking at buying a UK-based AI startup for $1 billion.
+Tim Cook, the CEO of Apple, said the acquisition will help enhance Siri’s intelligence.
+The company has previously acquired startups in Canada and Germany.
+"""
+
+# Process the text with spaCy
+doc = nlp(text)
+
+# --- 1. Named Entity Recognition (NER) ---
+print("\nNamed Entities:")
+for entity in doc.ents:
+    print(f"{entity.text} → {entity.label_} ({spacy.explain(entity.label_)})")
+
+# --- 2. Noun Phrase Extraction ---
+print("\nNoun Phrases:")
+for chunk in doc.noun_chunks:
+    print(chunk.text)
+
+
+(b)Chatbot GPT-2
+
+from transformers import GPTLMHeadModel, GPT2Tokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
+model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
+model.eval()
+
+print("GPT-2 Chatbot (type 'exit' to quit)")
+chat_history = None
+
+while True:
+    user_input = input("You: ")
+    if user_input.lower() == 'exit':
+        print("Bot: Goodbye! Have a great day!")
+        break
+
+    new_input_ids = tokenizer.encode(user_input + tokenizer.eos_token, return_tensors='pt')
+    # bot_input_ids = torch.cat([chat_history, new_input_ids], dim=-1) if chat_history is not None else new_input_ids
+
+    output = model.generate(
+        new_input_ids,
+        max_length=new_input_ids.shape[1] + 50,
+        pad_token_id=tokenizer.eos_token_id,
+        do_sample=True,
+        top_k=50,
+        top_p=0.95
+    )
+
+    bot_reply = tokenizer.decode(output[0][new_input_ids.shape[-1]:], skip_special_tokens=True)
+    print(f"Bot: {bot_reply}")
+
+    chat_history = output
+
+
+
+11 (a) Dictionary-based  QA
+
+# --- Dictionary-Based QA System ---
+qa_dict = {
+    "where is apple inc. headquartered?": "Apple Inc. is headquartered in Cupertino, California.",
+    "who founded apple?": "Apple was founded by Steve Jobs, Steve Wozniak, and Ronald Wayne in 1976.",
+    "what are apple’s popular products?": "Apple’s popular products include the iPhone, iPad, and Mac computers."
+}
+
+# --- Input Questions ---
+questions = [
+    "Where is Apple Inc. headquartered?",
+    "Who founded Apple?",
+    "What are Apple’s popular products?"
+]
+
+print("Dictionary-Based QA System Results:\n")
+for q in questions:
+    ans = qa_dict.get(q.lower(), "Sorry, I don’t know the answer to that.")
+    print(f"Q: {q}")
+    print(f"A: {ans}\n")
+ 
+
+(b) Transformer-based QA
+
+# Module: Question Answering System
+# ------------------------------------------------------------
+# Goal: Build a system that can answer questions from a given context
+# using pre-trained transformer models (BERT for QA).
+
+from transformers import pipeline
+
+# --- Load Pre-trained QA Pipeline ---
+qa_pipeline = pipeline(
+    "question-answering",
+    model="bert-large-uncased-whole-word-masking-finetuned-squad"
+)
+
+# --- Input: Context Text ---
+context = """
+Apple Inc. is a multinational technology company headquartered in Cupertino, California.
+It designs, develops, and sells consumer electronics, computer software, and online services.
+Its best-known products include the iPhone, iPad, and Mac computers.
+Apple was founded by Steve Jobs, Steve Wozniak, and Ronald Wayne in 1976.
+"""
+
+# --- Input: Questions ---
+questions = [
+    "Where is Apple Inc. headquartered?",
+    "Who founded Apple?",
+    "What are Apple’s popular products?"
+]
+
+# --- Get Answers for Each Question ---
+print("Question Answering System Results:\n")
+for question in questions:
+    result = qa_pipeline(question=question, context=context)
+    print(f"Q: {question}")
+    print(f"A: {result['answer']} (Confidence Score: {result['score']:.2f})\n")
+
+
+
+12 Info-Retrieval
+
+# Module: Information Retrieval System
+# ------------------------------------------------------------
+# Goal: Build a simple IR system with indexing, stop-word removal,
+# and stemming to retrieve relevant documents for a query.
+
+import spacy
+from nltk.stem import PorterStemmer
+from collections import defaultdict
+import nltk
+
+# Download NLTK stopwords if not already present
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+
+# Load English stopwords
+STOPWORDS = set(stopwords.words('english'))
+
+# Load spaCy English model
+nlp = spacy.load("en_core_web_sm")
+
+# Initialize stemmer
+stemmer = PorterStemmer()
+
+# --- Step 1: Sample Documents ---
+documents = {
+    "doc1": "Information Retrieval is a technique to search relevant documents.",
+    "doc2": "Retrieval systems use indexing to improve search efficiency.",
+    "doc3": "Search engines use natural language processing to understand queries.",
+}
+
+# --- Step 2: Preprocessing Function ---
+def preprocess(text):
+    doc = nlp(text.lower())
+    tokens = [
+        stemmer.stem(token.text)
+        for token in doc
+        if token.is_alpha and token.text not in STOPWORDS
+    ]
+    return tokens
+
+# --- Step 3: Build Inverted Index ---
+inverted_index = defaultdict(set)
+preprocessed_docs = {}
+
+for doc_id, content in documents.items():
+    tokens = preprocess(content)
+    preprocessed_docs[doc_id] = tokens
+    for token in tokens:
+        inverted_index[token].add(doc_id)
+
+# --- Step 4: Query Function ---
+def search(query):
+    query_tokens = preprocess(query)
+    matched_docs = None
+    for token in query_tokens:
+        docs_with_token = inverted_index.get(token, set())
+        if matched_docs is None:
+            matched_docs = docs_with_token
+        else:
+            matched_docs = matched_docs.intersection(docs_with_token)
+    return matched_docs if matched_docs else set()
+
+# --- Step 5: User Query ---
+if __name__ == "__main__":
+    print("Simple Information Retrieval System\n")
+    while True:
+        query = input("Enter your search query (or 'exit' to quit): ")
+        if query.lower() == 'exit':
+            break
+        results = search(query)
+        if results:
+            print("Documents matching query:")
+            for doc_id in results:
+                print(f"{doc_id}: {documents[doc_id]}")
+        else:
+            print("No documents found.")
+
+
+
+13 Positional-Encoding
+
+import torch
+import math
+
+def positional_encoding(sequence_length, embedding_dimension):
+    position_encoding = torch.zeros(sequence_length, embedding_dimension)
+    for position in range(sequence_length):
+        for i in range(0, embedding_dimension, 2):
+            position_encoding[position, i] = math.sin(position / (1000**(i/embedding_dimension)))
+            if i+1 < embedding_dimension:
+                position_encoding[position, i+1] = math.cos(position / (1000**(i/embedding_dimension)))
+    return position_encoding
+
+EMBEDDINGS = {
+    "The": torch.tensor([0.2, 0.5, 0.1, 0.7]),
+    "cat": torch.tensor([0.3, 0.6, 0.8, 0.1]),
+    "sleeps": torch.tensor([0.4, 0.9, 0.2, 0.5]),
+}
+
+def encode_sentence(tokens):
+    X = torch.stack([EMBEDDINGS[token] for token in tokens])
+    P = positional_encoding(sequence_length=len(tokens), embedding_dimension=X.size(1))
+    E = X + P
+    return X, P, E
+
+tokens_A = ["The", "cat", "sleeps"]
+tokens_B = ["sleeps", "The", "cat"]
+
+X_A, P_A, E_A = encode_sentence(tokens_A)
+X_B, P_B, E_B = encode_sentence(tokens_B)
+
+print("Tokens A:", tokens_A)
+print("Query tokens in order:\n", E_A)
+print("Tokens B:", tokens_B)
+print("Query tokens in order:\n", E_B)
+
+
+
+14 Coreference Resolution
+
+!pip install -q fastcoref
+import re
+from fastcoref import FCoref
+
+text = "Alice met Bob after she left the office. He told her the report was ready, and Alice thanked him."
+model = FCoref()
+result = model.predict(texts=[text])[0]
+
+print("Clusters:")
+for cluster in result.get_clusters(as_strings=True):
+    print(cluster)
+
+resolved_text = text
+
+def pick_representative(mentions):
+    proper_mentions = [m for m in mentions if re.match(r"[A-Z].*",m)]
+    if proper_mentions:
+        return max(proper_mentions, key=len)
+    return max(mentions, key=len)
+
+for mentions in result.get_clusters(as_strings=True):
+    representative = pick_representative(mentions)
+    for mention in sorted(set(mentions), key=len, reverse=True):
+        if mention == representative:
+            continue
+        pattern = r"\b" + re.escape(mention) + r"\b"
+        resolved_text = re.sub(pattern, representative, resolved_text, flags=re.IGNORECASE)
+    print("\nResolved Text:\n", resolved_text)
+
+
+
+15 All-In-One
+
+# pip install nltk
+
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+
+# One-time downloads
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+nltk.download('averaged_perceptron_tagger')
+
+# Step 1: Input text
+text = "The striped bats are hanging on their feet for best."
+
+print("Original Text:\n", text)
+
+# Step 2: Tokenization
+tokens = word_tokenize(text)
+print("\nTokens:\n", tokens)
+
+# Step 3: Stop-word Removal
+stop_words = set(stopwords.words('english'))
+filtered_tokens = [w for w in tokens if w.lower() not in stop_words]
+print("\nAfter Stop-word Removal:\n", filtered_tokens)
+
+# Step 4: Lemmatization
+lemmatizer = WordNetLemmatizer()
+lemmatized = [lemmatizer.lemmatize(w) for w in filtered_tokens]
+print("\nAfter Lemmatization:\n", lemmatized)
+
+# Step 5: Part-of-Speech (POS) Tagging
+pos_tags = nltk.pos_tag(lemmatized)
+print("\nPOS Tags:\n", pos_tags)
+
+
