@@ -622,10 +622,36 @@ for question in questions:
 
 12 Info-Retrieval
 
-# Module: Information Retrieval System
-# ------------------------------------------------------------
-# Goal: Build a simple IR system with indexing, stop-word removal,
-# and stemming to retrieve relevant documents for a query.
+documents = {
+    "doc1": "Information Retrieval is a technique to search relevant documents.",
+    "doc2": "Retrieval systems use indexing to improve search efficiency.",
+    "doc3": "Search engines use natural language processing to understand queries.",
+}
+
+
+def search(query):
+    query_words = query.lower().split()  
+    results = []
+    
+    for doc_id, content in documents.items():
+        content_words = content.lower().split()
+        if all(word in content_words for word in query_words):
+            results.append(doc_id)
+    return results
+
+while True:
+    query = input("\nEnter your search query (or 'exit' to quit): ")
+    if query.lower() == 'exit':
+        break
+    results = search(query)
+    if results:
+        print("Documents matching query:")
+        for doc_id in results:
+            print(f"{doc_id}: {documents[doc_id]}")
+    else:
+        print("No documents found.")
+
+-------------------------(OR)-------------------------------------
 
 import spacy
 from nltk.stem import PorterStemmer
@@ -810,5 +836,6 @@ print("\nAfter Lemmatization:\n", lemmatized)
 # Step 5: Part-of-Speech (POS) Tagging
 pos_tags = nltk.pos_tag(lemmatized)
 print("\nPOS Tags:\n", pos_tags)
+
 
 
